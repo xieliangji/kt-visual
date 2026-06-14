@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "kt-visual"
 
 include("kt-visual-ocr-paddle")
+include("kt-visual-ocr-multimodal")

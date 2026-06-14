@@ -112,11 +112,11 @@ Candidate features:
 - Edge-based matching. Done.
 - OCR extension interface. Done.
 - Feature matching through ORB or SIFT as a separate matcher type. Done: `VisualLocator` is the extension point; concrete ORB/SIFT implementation can live outside the default template matcher.
-- Multimodal OCR and UI understanding engine planned for 0.3.0:
-  - cloud or private multimodal model client abstraction;
-  - OCR fallback for weak text recognition cases;
-  - natural-language UI target location;
-  - structured JSON output with normalized coordinates.
+- Multimodal OCR engine:
+  - cloud or private multimodal model client abstraction. Done.
+  - OCR fallback for weak text recognition cases. Done.
+  - structured JSON output with normalized coordinates. Done.
+  - natural-language UI target location. Planned.
 
 Acceptance criteria:
 
@@ -243,3 +243,41 @@ Acceptance criteria:
 - Automation callers can click or wait by text without knowing OCR model paths.
 - Paddle resources are isolated from the core artifact.
 - Core remains usable without downloading OCR runtime or model resources.
+
+## Phase 7: Multimodal OCR Extension
+
+Goal: add an optional OCR engine for cloud or private multimodal models while
+keeping the default core artifact dependency-light.
+
+Implemented:
+
+- `kt-visual-ocr-multimodal` optional extension module.
+- `MultimodalOcrClient` abstraction for private VLM gateways.
+- `MultimodalOcrEngine` implementation of the core `OcrEngine` interface.
+- Structured OCR JSON parsing from top-level arrays, `texts`, `items`, or
+  `results` objects.
+- Normalized `bounds` coordinates and `bbox` / `box` corner arrays.
+- ROI cropping with coordinate restoration to the original screenshot.
+- Optional OCR fallback when the multimodal model returns no text or fails.
+- `OpenAiCompatibleMultimodalOcrClient` backed by the OpenAI Java SDK and
+  Responses API. Done.
+- Configurable retry policy for client errors, malformed model responses, and
+  opt-in empty-result retries. Done.
+- Opt-in online multilingual validation against the 13 Apple Support UI
+  screenshots used by Paddle OCR validation. Done.
+
+Acceptance criteria:
+
+- Core remains independent from cloud SDKs and API-specific dependencies.
+- Teams can plug in private multimodal services with a small client adapter.
+- `UiVision` OCR actions work unchanged with the multimodal engine.
+- Online validation passes for the configured OpenAI-compatible high-accuracy
+  model before the 0.3.0 release. Done.
+
+Verification status:
+
+- `./gradlew :kt-visual-ocr-multimodal:test --rerun-tasks` passed.
+- `./gradlew build` passed.
+- `git diff --check` passed.
+- Online 13-language multimodal OCR validation passed with the OpenAI SDK,
+  Responses API, non-streaming mode, and `reasoningEffort=high`.

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0 - 2026-06-14
+
+### Added
+
+- Added `kt-visual-ocr-multimodal` as an optional OCR extension module for
+  cloud or private multimodal model gateways.
+- Added `MultimodalOcrEngine`, which implements the core `OcrEngine` interface
+  and parses structured OCR JSON with normalized bounds.
+- Added `MultimodalOcrClient` for custom VLM gateways and
+  `OpenAiCompatibleMultimodalOcrClient` backed by the OpenAI Java SDK and
+  Responses API.
+- Added multimodal OCR fallback support so teams can fall back to another
+  `OcrEngine`, such as Paddle OCR, when the model returns no text or errors.
+- Added configurable multimodal OCR retries for transient client failures,
+  malformed model responses, and opt-in empty-result retries.
+- Added opt-in online multimodal OCR validation against the same 13 Apple
+  Support UI screenshots used by the Paddle OCR multilingual test.
+
+### Verification
+
+- Verified multimodal OCR with the OpenAI Java SDK, Responses API,
+  non-streaming mode, `reasoningEffort=high`, and the 13-language Apple Support
+  screenshot set.
+
 ## 0.2.0 - 2026-06-14
 
 ### Added

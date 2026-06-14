@@ -2,7 +2,7 @@
 
 基于 OpenCV 的 Kotlin/JVM UI 自动化视觉识别&图片处理模块。
 
-当前稳定版本：`0.2.0`
+当前稳定版本：`0.3.0`
 
 该模块用于在普通 Kotlin Gradle 自动化项目中，通过截图 + 模板图定位 UI 元素，并返回坐标、匹配区域和置信度。
 
@@ -97,13 +97,13 @@ repositories {
 }
 
 dependencies {
-    implementation("com.soluna:kt-visual:0.1.0")
+    implementation("com.soluna:kt-visual:0.3.0")
 }
 ```
 
 ### 方式二：从 GitHub 通过 JitPack 引入
 
-当本仓库推送到 GitHub 并打上 `v0.1.0` tag 后，自动化项目可以通过 JitPack 直接引用 GitHub 版本：
+当本仓库推送到 GitHub 并打上 `v0.3.0` tag 后，自动化项目可以通过 JitPack 直接引用 GitHub 版本：
 
 ```kotlin
 repositories {
@@ -112,7 +112,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.xieliangji:kt-visual:v0.1.0")
+    implementation("com.github.xieliangji:kt-visual:v0.3.0")
 }
 ```
 
@@ -120,12 +120,13 @@ dependencies {
 
 ### 方式三：OCR 扩展模块
 
-OCR 扩展从 `0.2.0` 开始独立提供，避免不用 OCR 的项目下载 Paddle 相关资源：
+OCR 扩展独立提供，避免不用 OCR 的项目下载 Paddle 或云端多模态相关依赖。Paddle OCR 扩展从 `0.2.0` 开始提供，多模态 OCR 扩展从 `0.3.0` 开始提供：
 
 ```kotlin
 dependencies {
-    implementation("com.soluna:kt-visual:0.2.0")
-    implementation("com.soluna:kt-visual-ocr-paddle:0.2.0")
+    implementation("com.soluna:kt-visual:0.3.0")
+    implementation("com.soluna:kt-visual-ocr-paddle:0.3.0")
+    implementation("com.soluna:kt-visual-ocr-multimodal:0.3.0")
 }
 ```
 
@@ -138,6 +139,9 @@ dependencies {
 - `PaddleOcrRuntime` 运行时适配接口
 - `PaddleOcrOnnxRuntime`，通过 ONNX Runtime 在 JVM 内执行 PaddleOCR det/rec 模型
 - `PaddleOcrCliRuntime`，可调用官方 PaddleOCR CLI 或团队内部 wrapper
+- `MultimodalOcrEngine`，通过云端或私有多模态模型执行结构化 OCR
+- `MultimodalOcrClient`，用于接入团队自己的 VLM 网关
+- `OpenAiCompatibleMultimodalOcrClient`，基于 OpenAI Java SDK 和 Responses API 接入 OpenAI 或兼容网关
 
 推荐 runtime 是 `PaddleOcrOnnxRuntime`。当前模型选择原则是“官方可直接发布的 ONNX 资源里优先精度”：检测使用 PP-OCRv6 medium，中文/英文/日文识别使用 PP-OCRv6 medium；官方没有 server ONNX 的语言组使用对应 PP-OCRv5 mobile ONNX，即韩语、拉丁语系、俄语和泰语。正式发布 OCR 扩展包时，可以把模型资源直接打进 `kt-visual-ocr-paddle` jar：
 
@@ -205,7 +209,7 @@ publishing {
 
             groupId = "com.example.automation"
             artifactId = "kt-visual"
-            version = "0.1.0"
+            version = "0.3.0"
         }
     }
 
@@ -237,7 +241,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.example.automation:kt-visual:0.1.0")
+    implementation("com.example.automation:kt-visual:0.3.0")
 }
 ```
 
@@ -840,6 +844,75 @@ OcrLanguage.INDONESIAN
 ```
 
 扩展模块会按语言自动路由到当前最高可用的官方 ONNX 模型组：PP-OCRv6 medium 用于检测和中英日识别，PP-OCRv5 mobile 用于韩语、拉丁语系、俄语和泰语识别。模型文件和字典通过 `PaddleOcrResourceManager` 解析到 `~/.kt-visual/models/paddleocr/`。
+
+多模态 OCR 适合处理低清截图、复杂 UI 文案、传统 OCR 置信度较弱的场景。它仍然实现 core 的 `OcrEngine` 接口，因此可以直接配置给 `UiVision`：
+
+```kotlin
+val cloudClient = OpenAiCompatibleMultimodalOcrClient.fromConfig(
+    OpenAiCompatibleMultimodalOcrConfig(
+        baseUrl = URI.create(System.getenv("KT_VISUAL_MULTIMODAL_BASE_URL")),
+        apiKey = System.getenv("KT_VISUAL_MULTIMODAL_API_KEY"),
+        model = System.getenv("KT_VISUAL_MULTIMODAL_MODEL"),
+        reasoningEffort = "high",
+        stream = false
+    ),
+    onStreamEvent = { event ->
+        // 仅 stream=true 时触发：记录 reasoning/content chunk。
+    }
+)
+
+val localFallback = PaddleOcrEngine.multilingual13(
+    runtime = PaddleOcrOnnxRuntime()
+)
+
+val ocr = MultimodalOcrEngine(
+    client = cloudClient,
+    fallback = localFallback,
+    options = MultimodalOcrOptions(
+        minConfidence = 0.80,
+        requireConfidence = false,
+        retry = MultimodalOcrRetryOptions(
+            maxAttempts = 3,
+            initialDelay = Duration.ofMillis(300),
+            maxDelay = Duration.ofSeconds(2),
+            retryOnEmptyResult = true
+        )
+    )
+)
+```
+
+如果企业内网已经有自己的多模态服务，只需要实现 `MultimodalOcrClient` 并返回 JSON 文本。默认 prompt 要求模型返回：
+
+```json
+{
+  "texts": [
+    {
+      "text": "Login",
+      "confidence": 0.98,
+      "bounds": {"x": 0.10, "y": 0.20, "width": 0.30, "height": 0.05}
+    }
+  ]
+}
+```
+
+`bounds` 推荐使用相对当前图片的归一化坐标；engine 会在传入 ROI 时自动恢复到整张截图坐标。也兼容 `bbox` / `box` 角点数组，例如 `[x1, y1, x2, y2]`。
+
+`MultimodalOcrOptions.retry` 用于处理实际自动化中常见的不稳定情况：网络抖动、网关临时错误、SDK 空响应、模型没有按 JSON schema 返回。默认 `maxAttempts=1`，不会改变调用耗时；需要增强稳定性时再显式开启多次尝试。空 OCR 结果可能是合法结果，所以只有 `retryOnEmptyResult=true` 时才会重试空结果。`minConfidence` 只过滤带置信度的条目；如果必须拒绝没有置信度的模型输出，设置 `requireConfidence=true`。
+
+`baseUrl`、`apiKey`、`model` 都由调用方从环境变量、配置中心或测试参数传入。库不会内置任何服务地址、密钥或模型名。`baseUrl` 传 `/v1` 级别地址即可，client 会通过 OpenAI Java SDK 请求 Responses API 的 `/responses` endpoint。
+
+真实多模态模型验收测试默认关闭。需要按 Paddle OCR 同一批 Apple Support 13 语言截图验证时运行：
+
+```bash
+KT_VISUAL_RUN_ONLINE_MULTIMODAL_OCR=true \
+KT_VISUAL_MULTIMODAL_BASE_URL="https://your-vlm-gateway.example.com/v1" \
+KT_VISUAL_MULTIMODAL_API_KEY="..." \
+KT_VISUAL_MULTIMODAL_MODEL="your-vision-model" \
+KT_VISUAL_MULTIMODAL_REASONING_EFFORT="high" \
+./gradlew :kt-visual-ocr-multimodal:test --tests com.soluna.ktvisual.ocr.multimodal.MultimodalOcrOnlineMultilingualTest
+```
+
+该测试默认使用非流式 SDK 调用。需要排查长请求是否持续输出时，可额外设置 `KT_VISUAL_MULTIMODAL_STREAM=true`，测试会统计 `reasoning` / `content` chunk。
 
 ## 模板图片规范
 
