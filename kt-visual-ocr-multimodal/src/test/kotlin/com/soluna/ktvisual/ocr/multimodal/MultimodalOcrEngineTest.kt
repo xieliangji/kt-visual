@@ -13,6 +13,20 @@ import kotlin.test.assertTrue
 class MultimodalOcrEngineTest {
 
     @Test
+    fun `default prompt constrains model to visible text only`() {
+        val prompt = MultimodalOcrOptions.DEFAULT_PROMPT
+
+        assertTrue(prompt.contains("directly visible"))
+        assertTrue(prompt.contains("Do not infer"))
+        assertTrue(prompt.contains("guess"))
+        assertTrue(prompt.contains("translate"))
+        assertTrue(prompt.contains("complete text"))
+        assertTrue(prompt.contains("omit it instead of guessing"))
+        assertTrue(prompt.contains("Return only JSON"))
+        assertTrue(prompt.contains("{\"texts\":[]}"))
+    }
+
+    @Test
     fun `recognize parses structured json and restores roi coordinates`() {
         val requests = mutableListOf<MultimodalOcrRequest>()
         val client = MultimodalOcrClient { request ->

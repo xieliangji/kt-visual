@@ -221,6 +221,9 @@ Guidelines:
 - Keep custom/private gateway support behind `MultimodalOcrClient` when the
   gateway does not expose an OpenAI-compatible Responses API.
 - Prefer structured JSON output with normalized bounds.
+- Keep multimodal OCR prompts conservative: extract only directly visible text;
+  do not infer hidden labels, translate, summarize, normalize, or complete
+  uncertain text from context.
 - Keep retry behavior configurable through `MultimodalOcrOptions.retry`; it
   should cover transient client errors and malformed model responses without
   forcing retries on callers that need strict latency.
@@ -254,10 +257,10 @@ git diff --check
 Example GitHub release flow:
 
 ```bash
-git tag -a v0.3.0 -m "kt-visual 0.3.0"
+git tag -a v0.3.1 -m "kt-visual 0.3.1"
 git push origin main
-git push origin v0.3.0
-gh release create v0.3.0 build/release/*.jar --repo xieliangji/kt-visual --title "kt-visual 0.3.0" --notes "<summary>"
+git push origin v0.3.1
+gh release create v0.3.1 build/release/*.jar --repo xieliangji/kt-visual --title "kt-visual 0.3.1" --notes "<summary>"
 ```
 
 ## Git And Workspace Rules
@@ -286,13 +289,15 @@ gh release create v0.3.0 build/release/*.jar --repo xieliangji/kt-visual --title
 ## Current Stable Baseline
 
 The latest published stable release at the time this guide was written is
-`0.3.0`:
+`0.3.1`:
 
 - Core visual matching and analysis facade.
 - OCR text actions in `Visual` and `UiVision`.
 - Optional Paddle OCR extension with 13-language profile.
 - Optional multimodal OCR extension backed by custom clients or the OpenAI Java
   SDK Responses API client.
+- Conservative multimodal OCR prompts that avoid inferred, translated,
+  summarized, or completed text.
 - Release assets include the core jar, normal Paddle OCR jar, with-models
   Paddle OCR jar, and multimodal OCR jar.
 

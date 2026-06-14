@@ -2,7 +2,7 @@
 
 基于 OpenCV 的 Kotlin/JVM UI 自动化视觉识别&图片处理模块。
 
-当前稳定版本：`0.3.0`
+当前稳定版本：`0.3.1`
 
 该模块用于在普通 Kotlin Gradle 自动化项目中，通过截图 + 模板图定位 UI 元素，并返回坐标、匹配区域和置信度。
 
@@ -97,13 +97,13 @@ repositories {
 }
 
 dependencies {
-    implementation("com.soluna:kt-visual:0.3.0")
+    implementation("com.soluna:kt-visual:0.3.1")
 }
 ```
 
 ### 方式二：从 GitHub 通过 JitPack 引入
 
-当本仓库推送到 GitHub 并打上 `v0.3.0` tag 后，自动化项目可以通过 JitPack 直接引用 GitHub 版本：
+当本仓库推送到 GitHub 并打上 `v0.3.1` tag 后，自动化项目可以通过 JitPack 直接引用 GitHub 版本：
 
 ```kotlin
 repositories {
@@ -112,7 +112,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.xieliangji:kt-visual:v0.3.0")
+    implementation("com.github.xieliangji:kt-visual:v0.3.1")
 }
 ```
 
@@ -124,9 +124,9 @@ OCR 扩展独立提供，避免不用 OCR 的项目下载 Paddle 或云端多模
 
 ```kotlin
 dependencies {
-    implementation("com.soluna:kt-visual:0.3.0")
-    implementation("com.soluna:kt-visual-ocr-paddle:0.3.0")
-    implementation("com.soluna:kt-visual-ocr-multimodal:0.3.0")
+    implementation("com.soluna:kt-visual:0.3.1")
+    implementation("com.soluna:kt-visual-ocr-paddle:0.3.1")
+    implementation("com.soluna:kt-visual-ocr-multimodal:0.3.1")
 }
 ```
 
@@ -209,7 +209,7 @@ publishing {
 
             groupId = "com.example.automation"
             artifactId = "kt-visual"
-            version = "0.3.0"
+            version = "0.3.1"
         }
     }
 
@@ -241,7 +241,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.example.automation:kt-visual:0.3.0")
+    implementation("com.example.automation:kt-visual:0.3.1")
 }
 ```
 
@@ -881,7 +881,7 @@ val ocr = MultimodalOcrEngine(
 )
 ```
 
-如果企业内网已经有自己的多模态服务，只需要实现 `MultimodalOcrClient` 并返回 JSON 文本。默认 prompt 要求模型返回：
+如果企业内网已经有自己的多模态服务，只需要实现 `MultimodalOcrClient` 并返回 JSON 文本。默认 prompt 会约束模型只返回图片中直接可见的文字：不要根据上下文、图标、布局或应用知识推断；不要补全被截断、模糊、遮挡或不确定的文字；不要翻译、归一化或总结；看不清就省略。默认 prompt 要求模型返回：
 
 ```json
 {

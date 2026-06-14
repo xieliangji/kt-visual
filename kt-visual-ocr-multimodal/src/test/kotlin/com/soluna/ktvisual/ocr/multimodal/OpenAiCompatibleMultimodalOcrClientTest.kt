@@ -45,7 +45,9 @@ class OpenAiCompatibleMultimodalOcrClientTest {
             assertEquals("Bearer token", capturedAuthorization)
             assertTrue(capturedBody.contains("\"model\":\"vision-model\""))
             assertTrue(capturedBody.contains("data:image/png;base64,AQID"))
-            assertTrue(capturedBody.contains("\"instructions\":\"You are a precise OCR engine for UI screenshots.\""))
+            assertTrue(capturedBody.contains("conservative OCR engine"))
+            assertTrue(capturedBody.contains("Report only text that is visually present"))
+            assertTrue(capturedBody.contains("Do not infer hidden labels"))
         } finally {
             server.stop(0)
         }
@@ -141,6 +143,7 @@ class OpenAiCompatibleMultimodalOcrClientTest {
             assertEquals("Bearer caller-key", capturedAuthorization)
             assertTrue(capturedBody.contains("\"model\":\"caller-model\""))
             assertTrue(capturedBody.contains("\"reasoning\":{\"effort\":\"high\""))
+            assertTrue(capturedBody.contains(OpenAiCompatibleMultimodalOcrClient.DEFAULT_SYSTEM_PROMPT))
         } finally {
             server.stop(0)
         }

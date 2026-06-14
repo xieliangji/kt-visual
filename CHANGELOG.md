@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.1 - 2026-06-14
+
+### Fixed
+
+- Tightened the default multimodal OCR prompt so models return only directly
+  visible text instead of inferring hidden labels, translating, summarizing, or
+  completing uncertain text from context.
+- Updated the OpenAI-compatible system prompt to use a conservative OCR role
+  that reports visual text facts only.
+
+### Verification
+
+- Verified the stricter prompt with the OpenAI Java SDK, Responses API,
+  non-streaming mode, `reasoningEffort=high`, and the 13-language Apple Support
+  screenshot set.
+
 ## 0.3.0 - 2026-06-14
 
 ### Added

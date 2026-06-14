@@ -150,11 +150,14 @@ class MultimodalOcrOnlineMultilingualTest {
     private companion object {
         private const val BASE = "https://cdsassets.apple.com/live/7WUAS350/images/ios"
         private const val ONLINE_OCR_PROMPT =
-            "Extract all visible UI text from this cropped screenshot. " +
-                "Return only JSON with this shape: " +
+            "Extract only text that is directly visible in this cropped screenshot. " +
+                "Do not infer, guess, translate, normalize, summarize, or complete text from context, icons, " +
+                "layout, app knowledge, or partially hidden content. If text is clipped, blurred, too small, " +
+                "obscured, or uncertain, omit it instead of guessing. Return only JSON with this shape: " +
                 "{\"texts\":[{\"text\":\"General\",\"confidence\":0.98," +
                 "\"bounds\":{\"x\":0.0,\"y\":0.0,\"width\":1.0,\"height\":1.0}}]}. " +
-                "Bounds must be normalized to this cropped image. Do not translate text."
+                "Keep the exact visible characters and original language. Bounds must tightly cover only " +
+                "the visible text pixels and be normalized to this cropped image."
 
         private val samples = listOf(
             OnlineOcrSample(

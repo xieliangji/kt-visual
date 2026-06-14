@@ -29,10 +29,14 @@ data class MultimodalOcrOptions(
 
     companion object {
         const val DEFAULT_PROMPT: String =
-            "Extract all visible UI text from the image. Return only JSON with this shape: " +
+            "Extract only text that is directly visible in the image. Do not infer, guess, translate, normalize, " +
+                "summarize, or complete text from context, icons, layout, app knowledge, or partially hidden content. " +
+                "If text is clipped, blurred, too small, obscured, or uncertain, omit it instead of guessing. " +
+                "Keep the exact visible characters and original language. Return only JSON with this shape: " +
                 "{\"texts\":[{\"text\":\"Login\",\"confidence\":0.98," +
                 "\"bounds\":{\"x\":0.1,\"y\":0.2,\"width\":0.3,\"height\":0.05}}]}. " +
-                "Bounds must be normalized to the provided image, using top-left x/y plus width/height."
+                "Bounds must tightly cover only the visible text pixels, normalized to the provided image, " +
+                "using top-left x/y plus width/height. If no text is clearly visible, return {\"texts\":[]}."
     }
 }
 

@@ -29,7 +29,7 @@ class OpenAiCompatibleMultimodalOcrClient(
     private val reasoningEffort: String? = null,
     private val stream: Boolean = false,
     private val onStreamEvent: (OpenAiCompatibleStreamEvent) -> Unit = {},
-    private val systemPrompt: String = "You are a precise OCR engine for UI screenshots.",
+    private val systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
     private val client: OpenAIClient = sdkClient(baseUrl, apiKey, timeout, extraHeaders)
 ) : MultimodalOcrClient {
 
@@ -130,6 +130,10 @@ class OpenAiCompatibleMultimodalOcrClient(
     }
 
     companion object {
+        const val DEFAULT_SYSTEM_PROMPT: String =
+            "You are a conservative OCR engine for UI screenshots. Report only text that is visually present. " +
+                "Do not infer hidden labels, translate, summarize, or fill missing characters."
+
         /**
          * Creates a client from an OpenAI-compatible base URL such as
          * `https://gateway.example.com/v1`.
@@ -195,7 +199,7 @@ data class OpenAiCompatibleMultimodalOcrConfig(
     val extraHeaders: Map<String, String> = emptyMap(),
     val reasoningEffort: String? = null,
     val stream: Boolean = false,
-    val systemPrompt: String = "You are a precise OCR engine for UI screenshots."
+    val systemPrompt: String = OpenAiCompatibleMultimodalOcrClient.DEFAULT_SYSTEM_PROMPT
 ) {
     init {
         require(model.isNotBlank()) { "model must not be blank." }
