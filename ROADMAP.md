@@ -281,3 +281,81 @@ Verification status:
 - `git diff --check` passed.
 - Online 13-language multimodal OCR validation passed with the OpenAI SDK,
   Responses API, non-streaming mode, and `reasoningEffort=high`.
+
+## Phase 8: Practical Automation Hardening
+
+Goal: improve stability, diagnosis, and cost control for real UI automation
+projects without expanding the library into a driver framework or a general
+purpose UI agent.
+
+Assessment:
+
+- The current 0.3.x capability set already covers the main recognition paths:
+  template matching, visual comparison, color/layout/quality analysis, OCR
+  actions, Paddle OCR, and multimodal OCR.
+- New work should be justified by high-frequency automation failures, not by
+  adding broad visual-AI features.
+- The most valuable next features are those that make failures explainable,
+  reduce repeated OCR cost, and make text-driven clicks safer.
+
+Recommended for 0.3.x patch releases:
+
+- Keep 0.3.x focused on stability and diagnostics only:
+  - prompt fixes for multimodal OCR;
+  - JSON parsing robustness;
+  - retry and fallback edge cases;
+  - documentation and test coverage for failure modes.
+- Avoid changing core driver boundaries in patch releases.
+
+Recommended for 0.4.0:
+
+- Visual evidence chain for recognition and actions:
+  - original screenshot;
+  - ROI crop;
+  - OCR or match boxes overlay;
+  - raw OCR/model response where applicable;
+  - parsed `OcrText` or match result;
+  - final click point and selected target.
+- OCR result cache:
+  - key by image hash, ROI, engine identity, prompt/version, and relevant
+    options;
+  - keep cache short-lived and caller-controllable;
+  - avoid repeated Paddle or multimodal calls for the same screenshot.
+- Text-click disambiguation:
+  - choose the nth match;
+  - constrain by ROI;
+  - choose nearest to a visual template or another text;
+  - support above/below/left/right relative text constraints;
+  - report why a candidate was selected or rejected.
+
+Recommended for 0.5.0 or later:
+
+- OCR fallback strategy chains:
+  - Paddle first, multimodal only when confidence is low or no target text is
+    found;
+  - multimodal first for low-quality crops, with Paddle fallback;
+  - per-language, per-ROI, or per-cost engine selection;
+  - explicit fallback reason in diagnostics.
+- Action preflight checks:
+  - target remains stable immediately before click;
+  - target is not visually occluded;
+  - target remains inside the expected ROI;
+  - click point is still valid after a short re-screenshot.
+- Higher-level visual state recognition only when justified by real cases:
+  - disabled/enabled;
+  - loading/ready;
+  - selected/unselected;
+  - table/list row and cell targeting.
+
+Explicit non-goals:
+
+- Do not integrate Appium, Selenium, ADB, browser sessions, app launch, or
+  test-flow orchestration into the core library.
+- Do not inspect mobile XML hierarchy when testing or implementing visual
+  recognition behavior.
+- Do not build a generic multimodal UI agent that reads a page and decides what
+  to do.
+- Do not encourage multimodal OCR to guess labels, infer intent, translate, or
+  complete uncertain text.
+- Do not expand OCR languages or model families without a concrete project
+  failure that requires it.

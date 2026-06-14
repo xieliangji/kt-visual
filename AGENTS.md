@@ -69,6 +69,11 @@ concrete: what was changed, what was tested, and what remains.
 - For UI input, preserve realistic automation semantics. Double-click should
   be an actual double-click action where the adapter supports it, not just two
   unrelated delayed single clicks.
+- After 0.3.1, prefer hardening over broad new capabilities. Prioritize visual
+  evidence artifacts, OCR caching, text-click disambiguation, fallback
+  strategy diagnostics, and action preflight checks. Avoid adding large model,
+  driver, or agent-style features without a concrete high-frequency automation
+  failure.
 - Keep generated build outputs, downloaded models, and caches out of git.
 
 ## Build Environment
