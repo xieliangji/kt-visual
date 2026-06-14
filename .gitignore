@@ -1,0 +1,7 @@
+/.idea/
+/build/
+/.gradle/
+/.gradle-home/
+/.kotlin/
+/src/appiumTest/
+/src/test/resources/mine.png
