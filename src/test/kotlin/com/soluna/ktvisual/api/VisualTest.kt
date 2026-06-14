@@ -1,6 +1,9 @@
 package com.soluna.ktvisual.api
 
 import com.soluna.ktvisual.OpenCvRuntime
+import com.soluna.ktvisual.model.OcrText
+import com.soluna.ktvisual.model.OcrTextMatchMode
+import com.soluna.ktvisual.model.OcrTextMatchOptions
 import com.soluna.ktvisual.model.Region
 import com.soluna.ktvisual.model.VisualTheme
 import java.awt.image.BufferedImage
@@ -79,6 +82,36 @@ class VisualTest {
             val blocks = Visual.findTextBlocks(encodePng(image))
 
             assertTrue(blocks.isNotEmpty())
+        } finally {
+            image.release()
+        }
+    }
+
+    @Test
+    fun `findText accepts encoded image bytes and OCR engine`() {
+        val image = Mat.zeros(16, 16, CvType.CV_8UC3)
+        val engine = object : OcrEngine {
+            override fun recognize(image: BufferedImage, roi: Region?): List<OcrText> {
+                return listOf(
+                    OcrText("Cancel", Region(1, 1, 20, 10), confidence = 0.99),
+                    OcrText("Continue", Region(1, 20, 35, 10), confidence = 0.95)
+                )
+            }
+        }
+
+        try {
+            val result = Visual.findText(
+                image = encodePng(image),
+                engine = engine,
+                query = "continue",
+                options = OcrTextMatchOptions(
+                    mode = OcrTextMatchMode.EXACT,
+                    ignoreCase = true,
+                    minConfidence = 0.90
+                )
+            )
+
+            assertEquals("Continue", result?.text)
         } finally {
             image.release()
         }

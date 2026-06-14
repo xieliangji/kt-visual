@@ -1,6 +1,10 @@
 package com.soluna.ktvisual.api
 
 import com.soluna.ktvisual.model.MatchOptions
+import com.soluna.ktvisual.model.OcrText
+import com.soluna.ktvisual.model.OcrTextMatchMode
+import com.soluna.ktvisual.model.OcrTextMatchOptions
+import com.soluna.ktvisual.model.Region
 import com.soluna.ktvisual.model.UiTarget
 import java.awt.image.BufferedImage
 import java.nio.file.Files
@@ -109,6 +113,56 @@ class UiVisionTest {
         assertTrue(result.elapsedMillis > 0)
     }
 
+    @Test
+    fun `clickText clicks center of matched OCR result`() {
+        val input = RecordingInput()
+        val ocr = FakeOcrEngine(
+            listOf(
+                OcrText(
+                    text = "登录",
+                    bounds = Region(20, 30, 40, 18),
+                    confidence = 0.97
+                )
+            )
+        )
+        val vision = UiVision(
+            screenSource = SequenceScreenSource(listOf(blankImage(100, 80))),
+            input = input,
+            ocrEngine = ocr
+        )
+
+        val result = vision.clickText("登录")
+
+        assertEquals("登录", result.text)
+        assertEquals(40, input.clicks.single().first)
+        assertEquals(39, input.clicks.single().second)
+    }
+
+    @Test
+    fun `findText supports exact mode and confidence filtering`() {
+        val ocr = FakeOcrEngine(
+            listOf(
+                OcrText("登录失败", Region(10, 10, 50, 16), confidence = 0.99),
+                OcrText("登录", Region(10, 30, 30, 16), confidence = 0.60),
+                OcrText("登录", Region(10, 50, 30, 16), confidence = 0.96)
+            )
+        )
+        val vision = UiVision(
+            screenSource = SequenceScreenSource(listOf(blankImage(100, 80))),
+            ocrEngine = ocr
+        )
+
+        val result = vision.findText(
+            query = "登录",
+            options = OcrTextMatchOptions(
+                mode = OcrTextMatchMode.EXACT,
+                minConfidence = 0.90
+            )
+        )
+
+        assertEquals(50, result?.bounds?.y)
+    }
+
     private class Fixture {
         val templateWidth = 12
         val templateHeight = 10
@@ -160,6 +214,21 @@ class UiVisionTest {
         }
 
         override fun type(text: String) = Unit
+    }
+
+    private class FakeOcrEngine(
+        private val results: List<OcrText>
+    ) : OcrEngine {
+        override fun recognize(image: BufferedImage, roi: Region?): List<OcrText> {
+            return if (roi == null) {
+                results
+            } else {
+                results.filter { text ->
+                    text.bounds.center.x in roi.x until roi.x + roi.width &&
+                        text.bounds.center.y in roi.y until roi.y + roi.height
+                }
+            }
+        }
     }
 
     private companion object {

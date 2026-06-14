@@ -2,7 +2,7 @@
 
 基于 OpenCV 的 Kotlin/JVM UI 自动化视觉识别&图片处理模块。
 
-当前稳定版本：`0.1.0`
+当前稳定版本：`0.2.0`
 
 该模块用于在普通 Kotlin Gradle 自动化项目中，通过截图 + 模板图定位 UI 元素，并返回坐标、匹配区域和置信度。
 
@@ -118,7 +118,82 @@ dependencies {
 
 这种方式适合团队内部先快速试用 GitHub 上的稳定 tag。正式团队产物仍建议发布到公司 Maven 仓库，避免构建依赖外部临时服务。
 
-### 方式三：发布到公司 Maven 仓库
+### 方式三：OCR 扩展模块
+
+OCR 扩展从 `0.2.0` 开始独立提供，避免不用 OCR 的项目下载 Paddle 相关资源：
+
+```kotlin
+dependencies {
+    implementation("com.soluna:kt-visual:0.2.0")
+    implementation("com.soluna:kt-visual-ocr-paddle:0.2.0")
+}
+```
+
+当前扩展模块已经提供：
+
+- `PaddleOcrEngine.multilingual13()`
+- 13 种语言枚举 `OcrLanguage`
+- 语言到模型组的路由
+- Paddle OCR 模型资源解析和 cache 目录管理
+- `PaddleOcrRuntime` 运行时适配接口
+- `PaddleOcrOnnxRuntime`，通过 ONNX Runtime 在 JVM 内执行 PaddleOCR det/rec 模型
+- `PaddleOcrCliRuntime`，可调用官方 PaddleOCR CLI 或团队内部 wrapper
+
+推荐 runtime 是 `PaddleOcrOnnxRuntime`。当前模型选择原则是“官方可直接发布的 ONNX 资源里优先精度”：检测使用 PP-OCRv6 medium，中文/英文/日文识别使用 PP-OCRv6 medium；官方没有 server ONNX 的语言组使用对应 PP-OCRv5 mobile ONNX，即韩语、拉丁语系、俄语和泰语。正式发布 OCR 扩展包时，可以把模型资源直接打进 `kt-visual-ocr-paddle` jar：
+
+```bash
+./gradlew :kt-visual-ocr-paddle:publish -PincludePaddleOcrModels=true
+```
+
+这样调用方只需要依赖 `kt-visual-ocr-paddle`，不需要单独去 PaddleOCR 下载模型或字典。运行时 `PaddleOcrResourceManager` 会从 jar 内资源解压到 `~/.kt-visual/models/paddleocr/` 并复用本地 cache。
+
+jar 内资源路径为：
+
+```text
+models/paddleocr/ppocrv6-det/det/inference.onnx
+models/paddleocr/ppocrv6-cjk-en/rec/inference.onnx
+models/paddleocr/ppocrv6-cjk-en/inference.yml
+models/paddleocr/ppocrv5-korean/rec/inference.onnx
+models/paddleocr/ppocrv5-korean/inference.yml
+models/paddleocr/ppocrv5-latin/rec/inference.onnx
+models/paddleocr/ppocrv5-latin/inference.yml
+models/paddleocr/ppocrv5-cyrillic/rec/inference.onnx
+models/paddleocr/ppocrv5-cyrillic/inference.yml
+models/paddleocr/ppocrv5-thai/rec/inference.onnx
+models/paddleocr/ppocrv5-thai/inference.yml
+```
+
+创建 runtime 不需要传模型路径：
+
+```kotlin
+val runtime = PaddleOcrOnnxRuntime()
+```
+
+真实模型集成测试默认关闭，避免普通构建联网。需要验证 ONNX runtime 对官方 PP-OCRv6 medium 资源的基础识别能力时运行：
+
+```bash
+KT_VISUAL_RUN_REAL_OCR=true ./gradlew :kt-visual-ocr-paddle:test --tests com.soluna.ktvisual.ocr.paddle.PaddleOcrOnnxRuntimeTest
+```
+
+需要验证 13 语言完整路由时运行在线验收：
+
+```bash
+KT_VISUAL_RUN_ONLINE_MULTILINGUAL_OCR=true ./gradlew :kt-visual-ocr-paddle:test --tests com.soluna.ktvisual.ocr.paddle.PaddleOcrOnlineMultilingualTest
+```
+
+测试会下载官方 PP-OCRv6 medium 和 PP-OCRv5 语言组 ONNX 资源到 `kt-visual-ocr-paddle/build/real-ocr-models-cache/`，并使用 Apple Support 的 13 语言 iOS 设置截图做在线验收。该测试允许轻微 OCR 字符误差，但必须识别到目标语言的关键文本。
+
+如果发布包没有带模型资源，默认 `PaddleOcrResourceManager` 会在首次使用时自动下载官方模型到 cache。企业内网或完全离线环境建议发布带模型资源的 jar，或提供自定义 `PaddleOcrResourceResolver` 指向内部制品库。
+
+CLI runtime 仍可作为兼容和调试路径。`PaddleOcrCliRuntime` 通过进程调用 PaddleOCR，并要求命令输出 JSONL：
+
+```json
+{"text":"Login","confidence":0.98,"bounds":{"x":10,"y":20,"width":80,"height":24}}
+```
+
+这样 core API 已稳定支持 OCR 动作，Paddle runtime 和模型资源也不会强耦合进主包。
+
+### 方式四：发布到公司 Maven 仓库
 
 在模块 `build.gradle.kts` 中配置：
 
@@ -694,6 +769,77 @@ interface VisualLocator {
     fun findAll(screen: Mat, target: UiTarget): List<MatchResult>
 }
 ```
+
+OCR 可以和视觉动作联动。高密度自动化场景里，推荐把 OCR 引擎配置到 `UiVision`，然后按文本查找、等待和点击：
+
+```kotlin
+val ocr: OcrEngine = createProjectOcrEngine()
+
+val vision = UiVision(
+    screenSource = appScreenSource,
+    input = appInput,
+    ocrEngine = ocr
+)
+
+vision.waitForText("登录")
+vision.clickText("登录")
+vision.clickText(
+    query = "继续",
+    options = OcrTextMatchOptions(
+        mode = OcrTextMatchMode.EXACT,
+        minConfidence = 0.90,
+        roi = Region(0, 120, 1080, 1600)
+    )
+)
+```
+
+也可以只对单张截图做 OCR 文本查找：
+
+```kotlin
+val loginText = Visual.findText(
+    image = screenshotBytes,
+    engine = ocr,
+    query = "登录"
+)
+```
+
+`clickText` 点击 OCR 文本框中心点。需要点击文本所在行、右侧按钮或列表 item 时，先通过 `findText` 拿到 `bounds`，再用 `Region` 的相对定位方法扩展目标区域。
+
+Paddle OCR 的 13 语言二次封装位于独立扩展模块：
+
+```kotlin
+val ocr = PaddleOcrEngine.multilingual13(
+    runtime = PaddleOcrOnnxRuntime()
+)
+```
+
+如果暂时使用官方 PaddleOCR CLI 或内部脚本，可以替换 runtime：
+
+```kotlin
+val ocr = PaddleOcrEngine.multilingual13(
+    runtime = PaddleOcrCliRuntime(command = listOf("/path/to/paddleocr-jsonl"))
+)
+```
+
+默认覆盖语言：
+
+```kotlin
+OcrLanguage.SIMPLIFIED_CHINESE
+OcrLanguage.ENGLISH
+OcrLanguage.KOREAN
+OcrLanguage.JAPANESE
+OcrLanguage.GERMAN
+OcrLanguage.FRENCH
+OcrLanguage.SPANISH
+OcrLanguage.PORTUGUESE
+OcrLanguage.RUSSIAN
+OcrLanguage.THAI
+OcrLanguage.VIETNAMESE
+OcrLanguage.TURKISH
+OcrLanguage.INDONESIAN
+```
+
+扩展模块会按语言自动路由到当前最高可用的官方 ONNX 模型组：PP-OCRv6 medium 用于检测和中英日识别，PP-OCRv5 mobile 用于韩语、拉丁语系、俄语和泰语识别。模型文件和字典通过 `PaddleOcrResourceManager` 解析到 `~/.kt-visual/models/paddleocr/`。
 
 ## 模板图片规范
 

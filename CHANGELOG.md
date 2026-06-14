@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.2.0 - 2026-06-14
+
+### Added
+
+- Started `kt-visual-ocr-paddle` as an optional OCR extension module.
+- Added `PaddleOcrEngine.multilingual13()` for the 13-language UI automation profile.
+- Added `OcrLanguage` for Simplified Chinese, English, Korean, Japanese, German,
+  French, Spanish, Portuguese, Russian, Thai, Vietnamese, Turkish, and Indonesian.
+- Added Paddle OCR model routing for the highest available official ONNX model
+  groups in the 13-language profile.
+- Added `PaddleOcrResourceManager` for resolving bundled model resources into
+  `~/.kt-visual/models/paddleocr/`.
+- Added `PaddleOcrRuntime` as the runtime adapter interface for DJL, ONNX
+  Runtime, or native Paddle inference integrations.
+- Added `PaddleOcrOnnxRuntime` as the preferred cross-platform JVM runtime for
+  converted PaddleOCR detection and recognition ONNX models.
+- Added Gradle packaging support for embedding official PaddleOCR ONNX
+  resources into the OCR extension jar with `-PincludePaddleOcrModels=true`.
+- Added automatic PaddleOCR resource caching/downloading in
+  `PaddleOcrResourceManager` so callers do not need to manage model files.
+- Added support for reading PaddleOCR `inference.yml` `character_dict` entries
+  directly when decoding ONNX recognizer output.
+- Added language-group routing for the 13-language profile:
+  - PP-OCRv6 medium detector shared across all groups;
+  - PP-OCRv6 medium recognizer for Simplified Chinese, English, and Japanese;
+  - PP-OCRv5 mobile recognizers for Korean, Latin, Cyrillic, and Thai groups,
+    because official server ONNX packages are not published for these groups.
+- Added opt-in online 13-language OCR validation against real Apple Support UI
+  screenshots.
+- Added `PaddleOcrCliRuntime` for practical PaddleOCR integration through an
+  official CLI or internal wrapper that emits OCR results as JSONL.
+- Added OCR text selection options with exact, contains, and regex matching.
+- Added `Visual.recognizeText`, `Visual.findText`, and `Visual.findAllText`
+  for OCR over encoded screenshot bytes.
+- Added OCR-driven `UiVision` actions:
+  - `recognizeText`
+  - `findText`
+  - `findAllText`
+  - `waitForText`
+  - `clickText`
+  - `doubleClickText`
+  - `assertTextVisible`
+
+### Notes
+
+- The preferred runtime route is ONNX Runtime. It requires converted PaddleOCR
+  detection and recognition models plus dictionaries. The process-based
+  `PaddleOcrCliRuntime` remains available for teams that already run official
+  PaddleOCR through Python or an internal wrapper.
+
 ## 0.1.0 - Stable Baseline
 
 First stable release of `kt-visual`, a Kotlin/JVM visual automation helper built

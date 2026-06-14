@@ -13,3 +13,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kt-visual"
+
+include("kt-visual-ocr-paddle")

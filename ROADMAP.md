@@ -112,6 +112,11 @@ Candidate features:
 - Edge-based matching. Done.
 - OCR extension interface. Done.
 - Feature matching through ORB or SIFT as a separate matcher type. Done: `VisualLocator` is the extension point; concrete ORB/SIFT implementation can live outside the default template matcher.
+- Multimodal OCR and UI understanding engine planned for 0.3.0:
+  - cloud or private multimodal model client abstraction;
+  - OCR fallback for weak text recognition cases;
+  - natural-language UI target location;
+  - structured JSON output with normalized coordinates.
 
 Acceptance criteria:
 
@@ -162,3 +167,79 @@ Verification status:
 - `git diff --check` passed.
 - Appium visual integration test was not rerun in this phase because `adb`
   currently reports no connected devices.
+
+## Phase 6: OCR Actions And Paddle Extension
+
+Goal: support high-density UI automation flows where text recognition directly
+drives visual actions.
+
+Implemented in core:
+
+- OCR text matching options:
+  - exact match.
+  - contains match.
+  - regex match.
+  - case-insensitive matching.
+  - whitespace normalization.
+  - confidence filtering.
+  - ROI filtering.
+- `Visual` OCR helpers for encoded screenshot bytes:
+  - `recognizeText`.
+  - `findText`.
+  - `findAllText`.
+- `UiVision` OCR actions:
+  - `recognizeText`.
+  - `findText`.
+  - `findAllText`.
+  - `waitForText`.
+  - `clickText`.
+  - `doubleClickText`.
+  - `assertTextVisible`.
+
+Planned optional extension:
+
+- `kt-visual-ocr-paddle`. Done.
+- `PaddleOcrEngine.multilingual13()`. Done.
+- Built-in routing for:
+  - Simplified Chinese.
+  - English.
+  - Korean.
+  - Japanese.
+  - German.
+  - French.
+  - Spanish.
+  - Portuguese.
+  - Russian.
+  - Thai.
+  - Vietnamese.
+  - Turkish.
+  - Indonesian.
+- Resource manager for bundled dictionaries and model files. Done.
+- Runtime adapter interface for DJL, ONNX Runtime, or native Paddle inference. Done.
+- Cross-platform ONNX Runtime implementation for converted PaddleOCR det/rec models. Done.
+- PP-OCRv6 `inference.yml` dictionary parsing for official ONNX model packages. Done.
+- Process-based PaddleOCR CLI runtime. Done.
+- Opt-in real-model integration test using official PP-OCRv6 medium ONNX models. Done.
+- Optional jar packaging for official PaddleOCR ONNX model resources with
+  `-PincludePaddleOcrModels=true`. Done.
+- Automatic PaddleOCR model cache population from packaged resources or official
+  remote URLs. Done.
+- Language-group model routing for the 13-language profile:
+  - PP-OCRv6 medium detector shared by all groups. Done.
+  - PP-OCRv6 medium recognizer for Simplified Chinese, English, and Japanese. Done.
+  - Highest official ONNX availability for other groups:
+    - PP-OCRv5 mobile Korean recognizer. Done.
+    - PP-OCRv5 mobile Latin recognizer. Done.
+    - PP-OCRv5 mobile Cyrillic recognizer. Done.
+    - PP-OCRv5 mobile Thai recognizer. Done.
+- Online 13-language OCR validation against Apple Support UI screenshots. Done.
+
+- Prepare 0.2.0 release artifacts:
+  - normal OCR extension jar without models. Done.
+  - OCR extension jar with embedded model resources. Done.
+
+Acceptance criteria:
+
+- Automation callers can click or wait by text without knowing OCR model paths.
+- Paddle resources are isolated from the core artifact.
+- Core remains usable without downloading OCR runtime or model resources.

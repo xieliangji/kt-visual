@@ -17,6 +17,9 @@ import com.soluna.ktvisual.model.ImageDiffResult
 import com.soluna.ktvisual.model.MatchOptions
 import com.soluna.ktvisual.model.MatchResult
 import com.soluna.ktvisual.model.NamedColor
+import com.soluna.ktvisual.model.OcrText
+import com.soluna.ktvisual.model.OcrTextMatchMode
+import com.soluna.ktvisual.model.OcrTextMatchOptions
 import com.soluna.ktvisual.model.Region
 import com.soluna.ktvisual.model.RepeatedRegionsResult
 import com.soluna.ktvisual.model.RgbColor
@@ -28,9 +31,11 @@ import com.soluna.ktvisual.model.VisualStabilityResult
 import com.soluna.ktvisual.utils.RetryWaiter
 import org.opencv.core.Mat
 import org.opencv.core.Rect
+import java.io.ByteArrayInputStream
 import java.awt.image.BufferedImage
 import java.nio.file.Path
 import java.time.Duration
+import javax.imageio.ImageIO
 
 /**
  * Primary facade for visual automation analysis.
@@ -42,6 +47,64 @@ import java.time.Duration
  * objects before returning.
  */
 object Visual {
+
+    /**
+     * Runs OCR over encoded screenshot bytes.
+     *
+     * Use this method for raw OCR results. For action-oriented UI automation,
+     * prefer [UiVision.findText], [UiVision.waitForText], and [UiVision.clickText].
+     */
+    fun recognizeText(image: ByteArray, engine: OcrEngine, roi: Region? = null): List<OcrText> {
+        return engine.recognize(bytesToBufferedImage(image), roi)
+    }
+
+    /**
+     * Returns the first OCR result that matches [query].
+     */
+    fun findText(
+        image: ByteArray,
+        engine: OcrEngine,
+        query: String,
+        options: OcrTextMatchOptions = OcrTextMatchOptions()
+    ): OcrText? {
+        return findAllText(image, engine, query, options).firstOrNull()
+    }
+
+    /**
+     * Returns all OCR results that match [query], ordered from top to bottom.
+     */
+    fun findAllText(
+        image: ByteArray,
+        engine: OcrEngine,
+        query: String,
+        options: OcrTextMatchOptions = OcrTextMatchOptions()
+    ): List<OcrText> {
+        require(query.isNotBlank()) { "query must not be blank." }
+        return recognizeText(image, engine, options.roi)
+            .filter { text -> matchesText(text, query, options) }
+            .sortedWith(compareBy<OcrText> { it.bounds.y }.thenBy { it.bounds.x })
+    }
+
+    /**
+     * Returns true when an OCR result matches [query] under [options].
+     */
+    fun matchesText(text: OcrText, query: String, options: OcrTextMatchOptions = OcrTextMatchOptions()): Boolean {
+        val confidence = text.confidence
+        if (confidence != null && options.minConfidence != null && confidence < options.minConfidence) {
+            return false
+        }
+
+        val actual = normalizeText(text.text, options)
+        val expected = normalizeText(query, options)
+        return when (options.mode) {
+            OcrTextMatchMode.EXACT -> actual.equals(expected, ignoreCase = options.ignoreCase)
+            OcrTextMatchMode.CONTAINS -> actual.contains(expected, ignoreCase = options.ignoreCase)
+            OcrTextMatchMode.REGEX -> Regex(
+                expected,
+                if (options.ignoreCase) setOf(RegexOption.IGNORE_CASE) else emptySet()
+            ).containsMatchIn(actual)
+        }
+    }
 
     /**
      * Compares two same-sized images and returns aggregate pixel differences.
@@ -333,5 +396,20 @@ object Visual {
     private fun cropForCompare(image: Mat, roi: Region?): Mat {
         if (roi == null) return image
         return Mat(image, Rect(roi.x, roi.y, roi.width, roi.height))
+    }
+
+    private fun normalizeText(value: String, options: OcrTextMatchOptions): String {
+        val trimmed = value.trim()
+        return if (options.normalizeWhitespace) {
+            trimmed.replace(Regex("\\s+"), " ")
+        } else {
+            trimmed
+        }
+    }
+
+    private fun bytesToBufferedImage(bytes: ByteArray): BufferedImage {
+        require(bytes.isNotEmpty()) { "image bytes must not be empty." }
+        return ImageIO.read(ByteArrayInputStream(bytes))
+            ?: throw VisionException("Failed to decode image bytes.")
     }
 }
