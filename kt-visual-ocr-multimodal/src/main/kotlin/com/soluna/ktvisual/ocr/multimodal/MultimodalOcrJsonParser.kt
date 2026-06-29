@@ -17,6 +17,7 @@ internal object MultimodalOcrJsonParser {
             is Map<*, *> -> firstArray(
                 root,
                 "texts",
+                "matches",
                 "items",
                 "results",
                 "ocr",
@@ -205,7 +206,7 @@ internal object MultimodalOcrJsonParser {
         return when (root) {
             is List<*> -> if (root.any(::looksLikeOcrItem)) 4 else 1
             is Map<*, *> -> {
-                val array = firstArray(root, "texts", "items", "results", "ocr", "ocr_results", "data")
+                val array = firstArray(root, "texts", "matches", "items", "results", "ocr", "ocr_results", "data")
                 when {
                     array?.any(::looksLikeOcrItem) == true -> 5
                     looksLikeOcrItem(root) -> 3

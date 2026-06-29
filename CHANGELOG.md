@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.2 - 2026-06-29
+
+### Added
+
+- Added a multimodal semantic text location API that asks a multimodal model to
+  locate visible text whose meaning matches a caller-provided target
+  description, including multilingual UI text and wrapped text blocks.
+- Added a single public semantic text-location entry point that accepts an
+  element/crop screenshot plus the current full screenshot, sends only the crop
+  to the multimodal model, and restores the returned text bbox to full
+  screenshot coordinates through local exact-scale template matching.
+
+### Verification
+
+- Verified semantic text location against real Appium Inspector element crops
+  and full screenshots without passing Inspector bounds into the API.
+
 ## 0.3.1 - 2026-06-14
 
 ### Fixed

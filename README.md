@@ -2,7 +2,7 @@
 
 基于 OpenCV 的 Kotlin/JVM UI 自动化视觉识别&图片处理模块。
 
-当前稳定版本：`0.3.1`
+当前稳定版本：`0.3.2`
 
 该模块用于在普通 Kotlin Gradle 自动化项目中，通过截图 + 模板图定位 UI 元素，并返回坐标、匹配区域和置信度。
 
@@ -97,13 +97,13 @@ repositories {
 }
 
 dependencies {
-    implementation("com.soluna:kt-visual:0.3.1")
+    implementation("com.soluna:kt-visual:0.3.2")
 }
 ```
 
 ### 方式二：从 GitHub 通过 JitPack 引入
 
-当本仓库推送到 GitHub 并打上 `v0.3.1` tag 后，自动化项目可以通过 JitPack 直接引用 GitHub 版本：
+当本仓库推送到 GitHub 并打上 `v0.3.2` tag 后，自动化项目可以通过 JitPack 直接引用 GitHub 版本：
 
 ```kotlin
 repositories {
@@ -112,7 +112,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.xieliangji:kt-visual:v0.3.1")
+    implementation("com.github.xieliangji:kt-visual:v0.3.2")
 }
 ```
 
@@ -124,9 +124,9 @@ OCR 扩展独立提供，避免不用 OCR 的项目下载 Paddle 或云端多模
 
 ```kotlin
 dependencies {
-    implementation("com.soluna:kt-visual:0.3.1")
-    implementation("com.soluna:kt-visual-ocr-paddle:0.3.1")
-    implementation("com.soluna:kt-visual-ocr-multimodal:0.3.1")
+    implementation("com.soluna:kt-visual:0.3.2")
+    implementation("com.soluna:kt-visual-ocr-paddle:0.3.2")
+    implementation("com.soluna:kt-visual-ocr-multimodal:0.3.2")
 }
 ```
 
@@ -209,7 +209,7 @@ publishing {
 
             groupId = "com.example.automation"
             artifactId = "kt-visual"
-            version = "0.3.1"
+            version = "0.3.2"
         }
     }
 
@@ -241,7 +241,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.example.automation:kt-visual:0.3.1")
+    implementation("com.example.automation:kt-visual:0.3.2")
 }
 ```
 
@@ -896,6 +896,27 @@ val ocr = MultimodalOcrEngine(
 ```
 
 `bounds` 推荐使用相对当前图片的归一化坐标；engine 会在传入 ROI 时自动恢复到整张截图坐标。也兼容 `bbox` / `box` 角点数组，例如 `[x1, y1, x2, y2]`。
+
+如果调用方不是要识别全部 OCR 文本，而是要定位“语义符合”的可见文本，只暴露一个高层 API：传入元素/局部截图、当前完整页面截图和语义目标。库会先在本地用 OpenCV 把局部图匹配到完整截图里，只把局部图发送给多模态模型，再把模型返回的局部文本 bbox 换算为完整截图坐标：
+
+```kotlin
+val target = ocr.locateTextInImagePart(
+    partImage = elementScreenshotBytes,
+    fullImage = fullScreenshotBytes,
+    target = "用户协议、隐私政策、个人信息收集清单的同意文本",
+    locationOptions = MultimodalTextLocationOptions(
+        minConfidence = 0.80
+    )
+)
+
+target?.bounds  // 完整截图坐标系下的文本区域
+target?.center  // 可用于点击的中心点
+target?.text    // 模型实际看到的原文，例如 "Politique de confidentialité"
+```
+
+`target` 是语义描述，不要求和 UI 文本同语言。比如调用方传入中文 `"用户协议、隐私政策、个人信息收集清单的同意文本"`，模型可以匹配法语 `"Contrat d'utilisation"`、`"Politique de confidentialité"` 等实际可见文本，但返回的 `text` 必须是图片里看到的原文，不能翻译。文本可能换行或拆成多个相邻片段时，prompt 会要求模型返回“包含最多相关可见文字”的文本块 bbox。
+
+这个 API 不接收 Appium Inspector bounds、ROI、`imageOrigin` 或 `imageScale`。测试用例只保留两张运行时截图和语义目标，不绑定某个固定分辨率下的像素位置。局部图和完整图必须来自同一次、同一像素比例的截图；如果调用方把局部图缩放后再传入，本地模板匹配会失败并返回 `null`。
 
 `MultimodalOcrOptions.retry` 用于处理实际自动化中常见的不稳定情况：网络抖动、网关临时错误、SDK 空响应、模型没有按 JSON schema 返回。默认 `maxAttempts=1`，不会改变调用耗时；需要增强稳定性时再显式开启多次尝试。空 OCR 结果可能是合法结果，所以只有 `retryOnEmptyResult=true` 时才会重试空结果。`minConfidence` 只过滤带置信度的条目；如果必须拒绝没有置信度的模型输出，设置 `requireConfidence=true`。
 

@@ -294,7 +294,7 @@ gh release create v0.3.1 build/release/*.jar --repo xieliangji/kt-visual --title
 ## Current Stable Baseline
 
 The latest published stable release at the time this guide was written is
-`0.3.1`:
+`0.3.2`:
 
 - Core visual matching and analysis facade.
 - OCR text actions in `Visual` and `UiVision`.
@@ -303,6 +303,10 @@ The latest published stable release at the time this guide was written is
   SDK Responses API client.
 - Conservative multimodal OCR prompts that avoid inferred, translated,
   summarized, or completed text.
+- Multimodal semantic text location through a single high-level API that takes
+  an element/crop screenshot plus the full screenshot, sends only the crop to
+  the model, and restores the returned text bbox to full-screenshot
+  coordinates.
 - Release assets include the core jar, normal Paddle OCR jar, with-models
   Paddle OCR jar, and multimodal OCR jar.
 

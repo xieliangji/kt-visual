@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.soluna"
-version = "0.3.1"
+version = "0.3.2"
 
 java {
     toolchain {

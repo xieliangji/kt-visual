@@ -116,7 +116,8 @@ Candidate features:
   - cloud or private multimodal model client abstraction. Done.
   - OCR fallback for weak text recognition cases. Done.
   - structured JSON output with normalized coordinates. Done.
-  - natural-language UI target location. Planned.
+  - natural-language UI target location through an element/crop screenshot plus
+    full screenshot API. Done.
 
 Acceptance criteria:
 
@@ -265,6 +266,9 @@ Implemented:
   opt-in empty-result retries. Done.
 - Opt-in online multilingual validation against the 13 Apple Support UI
   screenshots used by Paddle OCR validation. Done.
+- Semantic text location API for finding the bbox of visible text whose meaning
+  matches a target description across languages, including wrapped text blocks.
+  Done.
 
 Acceptance criteria:
 

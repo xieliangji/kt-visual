@@ -3,8 +3,11 @@ package com.soluna.ktvisual.ocr.multimodal
 import com.soluna.ktvisual.api.OcrEngine
 import com.soluna.ktvisual.model.OcrText
 import com.soluna.ktvisual.model.Region
+import java.awt.Color
 import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.time.Duration
+import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -122,6 +125,168 @@ class MultimodalOcrEngineTest {
     }
 
     @Test
+    fun `locate text in image part sends only part image and returns full coordinates`() {
+        val requests = mutableListOf<MultimodalOcrRequest>()
+        val partImage = patternedImage(60, 30)
+        val fullImage = BufferedImage(200, 120, BufferedImage.TYPE_3BYTE_BGR)
+        fullImage.createGraphics().use { graphics ->
+            graphics.color = Color(240, 240, 240)
+            graphics.fillRect(0, 0, fullImage.width, fullImage.height)
+            graphics.drawImage(partImage, 70, 40, null)
+        }
+        val engine = MultimodalOcrEngine(
+            client = MultimodalOcrClient { request ->
+                requests += request
+                """
+                {
+                  "matches": [
+                    {
+                      "text": "语言与地区",
+                      "confidence": 0.91,
+                      "bounds": {"x": 0.20, "y": 0.30, "width": 0.50, "height": 0.20}
+                    }
+                  ]
+                }
+                """.trimIndent()
+            }
+        )
+
+        val result = engine.locateTextInImagePart(
+            partImage = pngBytes(partImage),
+            fullImage = pngBytes(fullImage),
+            target = "language and region settings"
+        )
+
+        assertEquals("language and region settings", result?.target)
+        assertEquals("语言与地区", result?.text)
+        assertEquals(Region(82, 49, 30, 6), result?.bounds)
+        assertEquals(0.91, result?.confidence)
+        assertEquals(60, requests.single().width)
+        assertEquals(30, requests.single().height)
+
+        val prompt = requests.single().prompt
+        assertTrue(prompt.contains("match by semantic meaning"))
+        assertTrue(prompt.contains("different language"))
+        assertTrue(prompt.contains("wraps across multiple lines"))
+        assertTrue(prompt.contains("contains the most matching text"))
+        assertTrue(prompt.contains("do not translate the returned text"))
+        assertTrue(prompt.contains("language and region settings"))
+    }
+
+    @Test
+    fun `locate text in image part respects confidence filtering`() {
+        val partImage = patternedImage(50, 40)
+        val fullImage = BufferedImage(120, 100, BufferedImage.TYPE_3BYTE_BGR)
+        fullImage.createGraphics().use { graphics ->
+            graphics.color = Color.WHITE
+            graphics.fillRect(0, 0, fullImage.width, fullImage.height)
+            graphics.drawImage(partImage, 15, 25, null)
+        }
+        val engine = MultimodalOcrEngine(
+            client = MultimodalOcrClient {
+                """
+                {
+                  "matches": [
+                    {"text":"Low","confidence":0.40,"bounds":{"x":0,"y":0,"width":0.2,"height":0.2}},
+                    {"text":"First","confidence":0.95,"bounds":{"x":0.1,"y":0.1,"width":0.2,"height":0.2}},
+                    {"text":"Second","confidence":0.96,"bounds":{"x":0.4,"y":0.1,"width":0.2,"height":0.2}}
+                  ]
+                }
+                """.trimIndent()
+            }
+        )
+
+        val result = engine.locateTextInImagePart(
+            partImage = pngBytes(partImage),
+            fullImage = pngBytes(fullImage),
+            target = "confirm button",
+            locationOptions = MultimodalTextLocationOptions(minConfidence = 0.90)
+        )
+
+        assertEquals("First", result?.text)
+        assertEquals(Region(20, 29, 10, 8), result?.bounds)
+    }
+
+    @Test
+    fun `locate text in image part can require confidence`() {
+        val partImage = patternedImage(50, 40)
+        val fullImage = BufferedImage(120, 100, BufferedImage.TYPE_3BYTE_BGR)
+        fullImage.createGraphics().use { graphics ->
+            graphics.color = Color.WHITE
+            graphics.fillRect(0, 0, fullImage.width, fullImage.height)
+            graphics.drawImage(partImage, 15, 25, null)
+        }
+        val engine = MultimodalOcrEngine(
+            client = MultimodalOcrClient {
+                """
+                {
+                  "matches": [
+                    {"text":"NoScore","bounds":{"x":0.10,"y":0.20,"width":0.30,"height":0.40}}
+                  ]
+                }
+                """.trimIndent()
+            }
+        )
+
+        val result = engine.locateTextInImagePart(
+            partImage = pngBytes(partImage),
+            fullImage = pngBytes(fullImage),
+            target = "wifi settings",
+            locationOptions = MultimodalTextLocationOptions(
+                minConfidence = 0.9,
+                requireConfidence = true
+            )
+        )
+
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `locate text in encoded image part returns null when part is not found`() {
+        val engine = MultimodalOcrEngine(
+            client = MultimodalOcrClient {
+                error("Model should not be called when part image cannot be found in full image.")
+            }
+        )
+
+        val result = engine.locateTextInImagePart(
+            partImage = pngBytes(patternedImage(20, 20)),
+            fullImage = pngBytes(BufferedImage(80, 80, BufferedImage.TYPE_3BYTE_BGR)),
+            target = "anything"
+        )
+
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `locate text in image part accepts Chinese semantic target for foreign visible text`() {
+        val requests = mutableListOf<MultimodalOcrRequest>()
+        val partImage = patternedImage(60, 30)
+        val fullImage = BufferedImage(200, 120, BufferedImage.TYPE_3BYTE_BGR)
+        fullImage.createGraphics().use { graphics ->
+            graphics.color = Color(240, 240, 240)
+            graphics.fillRect(0, 0, fullImage.width, fullImage.height)
+            graphics.drawImage(partImage, 70, 40, null)
+        }
+        val engine = MultimodalOcrEngine(
+            client = MultimodalOcrClient { request ->
+                requests += request
+                """{"matches":[{"text":"Politique de confidentialité","confidence":0.99,"bounds":{"x":0.1,"y":0.2,"width":0.5,"height":0.4}}]}"""
+            }
+        )
+
+        val result = engine.locateTextInImagePart(
+            partImage = pngBytes(partImage),
+            fullImage = pngBytes(fullImage),
+            target = "用户协议、隐私政策、个人信息收集清单的同意文本"
+        )
+
+        assertEquals("Politique de confidentialité", result?.text)
+        assertTrue(requests.single().prompt.contains("用户协议、隐私政策、个人信息收集清单的同意文本"))
+        assertTrue(requests.single().prompt.contains("different language"))
+    }
+
+    @Test
     fun `recognize retries malformed model response`() {
         var attempts = 0
         val engine = MultimodalOcrEngine(
@@ -222,6 +387,33 @@ class MultimodalOcrEngineTest {
         override fun recognize(image: BufferedImage, roi: Region?): List<OcrText> {
             this.roi = roi
             return results
+        }
+    }
+
+    private fun pngBytes(image: BufferedImage): ByteArray {
+        val output = ByteArrayOutputStream()
+        ImageIO.write(image, "png", output)
+        return output.toByteArray()
+    }
+
+    private fun patternedImage(width: Int, height: Int): BufferedImage {
+        val image = BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR)
+        image.createGraphics().use { graphics ->
+            graphics.color = Color.WHITE
+            graphics.fillRect(0, 0, width, height)
+            graphics.color = Color.BLACK
+            graphics.fillRect(3, 4, width / 2, height / 3)
+            graphics.color = Color(30, 120, 220)
+            graphics.fillOval(width / 2, height / 3, width / 3, height / 2)
+        }
+        return image
+    }
+
+    private inline fun <T> java.awt.Graphics2D.use(block: (java.awt.Graphics2D) -> T): T {
+        return try {
+            block(this)
+        } finally {
+            dispose()
         }
     }
 }
